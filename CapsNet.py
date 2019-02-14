@@ -91,29 +91,26 @@ def caps_loss(y_true, y_pred, x, x_recon, lam_recon):
 
 
 def show_reconstruction(model, test_loader, n_images, args):
-    # import matplotlib.pyplot as plt
     import matplotlib
     matplotlib.use('agg')
-    import matplotlib.pyplot as plt
     from utils import combine_images
-    from PIL import Image
     import numpy as np
+    import cv2
 
     model.eval()
     for x, _ in test_loader:
-        # x = Variable(x[:min(n_images, x.size(0))].cuda(), volatile=True)
         with torch.no_grad():
             x = Variable(x[:min(n_images, x.size(0))].cuda())
         _, x_recon = model(x)
         data = np.concatenate([x.data.cpu(), x_recon.data.cpu()])
         img = combine_images(np.transpose(data, [0, 2, 3, 1]))
-        image = img * 255
-        Image.fromarray(image.astype(np.uint8)).save(args.save_dir + "/real_and_recon.png")
+        image = (img * 255).astype(np.uint8)
+        cv2.imwrite(args.save_dir + "/output.png", image)
         print()
-        print('Reconstructed images are saved to %s/real_and_recon.png' % args.save_dir)
+        print('Reconstructed images are saved to %s/output.png' % args.save_dir)
         print('-' * 70)
-        plt.imshow(plt.imread(args.save_dir + "/real_and_recon.png", ))
-        plt.show()
+        cv2.imshow('Image', image)
+        cv2.waitKey(0)
         break
 
 
@@ -123,7 +120,6 @@ def test(model, test_loader, args):
     correct = 0
     for x, y in test_loader:
         y = torch.zeros(y.size(0), 10).scatter_(1, y.view(-1, 1), 1.)
-        # x, y = Variable(x.cuda(), volatile=True), Variable(y.cuda())
         with torch.no_grad():
             x = Variable(x.cuda())
         y = Variable(y.cuda())
