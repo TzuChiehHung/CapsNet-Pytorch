@@ -91,6 +91,9 @@ def caps_loss(y_true, y_pred, x, x_recon, lam_recon):
 
 
 def show_reconstruction(model, test_loader, n_images, args):
+    # import matplotlib.pyplot as plt
+    import matplotlib
+    matplotlib.use('agg')
     import matplotlib.pyplot as plt
     from utils import combine_images
     from PIL import Image
@@ -98,9 +101,11 @@ def show_reconstruction(model, test_loader, n_images, args):
 
     model.eval()
     for x, _ in test_loader:
-        x = Variable(x[:min(n_images, x.size(0))].cuda(), volatile=True)
+        # x = Variable(x[:min(n_images, x.size(0))].cuda(), volatile=True)
+        with torch.no_grad():
+            x = Variable(x[:min(n_images, x.size(0))].cuda())
         _, x_recon = model(x)
-        data = np.concatenate([x.data, x_recon.data])
+        data = np.concatenate([x.data.cpu(), x_recon.data.cpu()])
         img = combine_images(np.transpose(data, [0, 2, 3, 1]))
         image = img * 255
         Image.fromarray(image.astype(np.uint8)).save(args.save_dir + "/real_and_recon.png")
@@ -118,9 +123,12 @@ def test(model, test_loader, args):
     correct = 0
     for x, y in test_loader:
         y = torch.zeros(y.size(0), 10).scatter_(1, y.view(-1, 1), 1.)
-        x, y = Variable(x.cuda(), volatile=True), Variable(y.cuda())
+        # x, y = Variable(x.cuda(), volatile=True), Variable(y.cuda())
+        with torch.no_grad():
+            x = Variable(x.cuda())
+        y = Variable(y.cuda())
         y_pred, x_recon = model(x)
-        test_loss += caps_loss(y, y_pred, x, x_recon, args.lam_recon).data[0] * x.size(0)  # sum up batch loss
+        test_loss += caps_loss(y, y_pred, x, x_recon, args.lam_recon).item() * x.size(0)  # sum up batch loss
         y_pred = y_pred.data.max(1)[1]
         y_true = y.data.max(1)[1]
         correct += y_pred.eq(y_true).cpu().sum()
@@ -162,16 +170,16 @@ def train(model, train_loader, test_loader, args):
             y_pred, x_recon = model(x, y)  # forward
             loss = caps_loss(y, y_pred, x, x_recon, args.lam_recon)  # compute loss
             loss.backward()  # backward, compute all gradients of loss w.r.t all Variables
-            training_loss += loss.data[0] * x.size(0)  # record the batch loss
+            training_loss += loss.data.item() * x.size(0)  # record the batch loss
             optimizer.step()  # update the trainable parameters with computed gradients
 
         # compute validation loss and acc
         val_loss, val_acc = test(model, test_loader, args)
         logwriter.writerow(dict(epoch=epoch, loss=training_loss / len(train_loader.dataset),
-                                val_loss=val_loss, val_acc=val_acc))
+                                val_loss=val_loss, val_acc=val_acc.item()))
         print("==> Epoch %02d: loss=%.5f, val_loss=%.5f, val_acc=%.4f, time=%ds"
               % (epoch, training_loss / len(train_loader.dataset),
-                 val_loss, val_acc, time() - ti))
+                 val_loss, val_acc.item(), time() - ti))
         if val_acc > best_val_acc:  # update best validation acc and save model
             best_val_acc = val_acc
             torch.save(model.state_dict(), args.save_dir + '/epoch%d.pkl' % epoch)

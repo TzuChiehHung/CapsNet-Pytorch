@@ -1,5 +1,7 @@
 .idea/
 data/
 result/*
-!result/*.png
+# !result/*.png
 *.sh
+.vscode/
+__pycache__/
