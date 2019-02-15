@@ -116,7 +116,7 @@ def test(model, test_loader, args):
         correct += y_pred.eq(y_true).cpu().sum()
 
     test_loss /= len(test_loader.dataset)
-    return test_loss, correct / len(test_loader.dataset)
+    return test_loss, correct.item() / len(test_loader.dataset)
 
 
 def train(model, train_loader, test_loader, args):
@@ -158,10 +158,10 @@ def train(model, train_loader, test_loader, args):
         # compute validation loss and acc
         val_loss, val_acc = test(model, test_loader, args)
         logwriter.writerow(dict(epoch=epoch, loss=training_loss / len(train_loader.dataset),
-                                val_loss=val_loss, val_acc=val_acc.item()))
+                                val_loss=val_loss, val_acc=val_acc))
         print("==> Epoch %02d: loss=%.5f, val_loss=%.5f, val_acc=%.4f, time=%ds"
               % (epoch, training_loss / len(train_loader.dataset),
-                 val_loss, val_acc.item(), time() - ti))
+                 val_loss, val_acc, time() - ti))
         if val_acc > best_val_acc:  # update best validation acc and save model
             best_val_acc = val_acc
             torch.save(model.state_dict(), args.save_dir + '/epoch%d.pkl' % epoch)
@@ -221,8 +221,6 @@ if __name__ == "__main__":
     parser.add_argument('--download', action='store_true',
                         help="Download the required data.")
     parser.add_argument('--save_dir', default='./result')
-    parser.add_argument('-t', '--testing', action='store_true',
-                        help="Test the trained model on testing dataset")
     parser.add_argument('-w', '--weights', default=None,
                         help="The path of the saved weights. Should be specified when testing")
     parser.add_argument('-a', '--action', default='train', type=str,
